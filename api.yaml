@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: API für IQB-CodingService
-  version: '0.1.0'
+  title: API für IQB-ResponseAnalyser
+  version: '0.2.0'
   description: |
-    Der Coding-Service ist ein Teil der [TBA-Architektur](https://iqb-berlin.github.io/tba-info) 
+    Der ResponseAnalyser ist ein Teil der [TBA-Architektur](https://iqb-berlin.github.io/tba-info) 
     für die Kodierung und die Datenanalyse von Lernstandserhebungen. Es werden Konfigurationsdaten 
     hochgeladen und dann pro Request die Kodierung und Analyse EINER Testperson geliefert.
   contact:
@@ -14,14 +14,14 @@ info:
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 
 servers:
-  - url: https://www.iqb-codingservice.de/
+  - url: https://www.iqb-responseanalyser.de/
     description: Beispiel
 
 tags:
   - name: admin
     description: Verwaltung von Arbeitsbereichen
   - name: manage-content
-    description: Hochladen/Löschen von Survey Content
+    description: Hochladen/Löschen von Assessment Content
   - name: evaluate
     description: Testergebnisse kodieren und analysieren
 
@@ -112,11 +112,11 @@ paths:
     post:
       tags:
         - manage-content
-      summary: Hochladen von Survey Content
+      summary: Hochladen von Assessment Content
       description: |
         In einem Arbeitsbereich sind alle Informationen gespeichert, die für die Datenanalyse und Kodierung erforderlich 
         sind. Diese Datenstrukturen sind als Dateien verfügbar.
-      operationId: uploadSurveyContent
+      operationId: uploadAssessmentContent
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
@@ -147,11 +147,11 @@ paths:
     delete:
       tags:
         - manage-content
-      summary: Löschen von Survey Content
+      summary: Löschen von Assessment Content
       description: |
         In einem Arbeitsbereich sind alle Informationen gespeichert, die für die Datenanalyse und Kodierung erforderlich 
         sind. Diese Datenstrukturen sind als Dateien verfügbar.
-      operationId: uploadSurveyContent
+      operationId: uploadAssessmentContent
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
