@@ -57,6 +57,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
   /ws-admin/{workspaceId}:
     patch:
       tags:
@@ -90,7 +91,7 @@ paths:
       tags:
         - admin
       summary: Allgemeine Daten des Arbeitsbereiches werden abgefragt.
-      description: Abruf von Name,
+      description: Abruf von Name, Unitliste und Skalenliste
       operationId: getWorkspaceInfo
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
@@ -108,28 +109,27 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /ws-admin/{workspaceId}/upload-content:
+  /ws-admin/{workspaceId}/upload-unit:
     post:
       tags:
         - manage-content
-      summary: Hochladen von Assessment Content
-      description: |
-        In einem Arbeitsbereich sind alle Informationen gespeichert, die für die Datenanalyse und Kodierung erforderlich 
-        sind. Diese Datenstrukturen sind als Dateien verfügbar.
-      operationId: uploadAssessmentContent
+      summary: Hochladen des Kodierschemas und der Itemliste einer Unit
+      operationId: uploadUnitData
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
               type: object
               properties:
-                contentAsFile:
+                id:
                   type: string
-                  description: file
-                  required: true
+                codingScheme:
+                  $ref: 'https://w3id.org/iqb/spec/coding-scheme/3.3'
+                items:
+                  $ref: '#/components/schemas/Items'
 
       responses:
         '200':
@@ -143,17 +143,70 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /ws-admin/{workspaceId}/delete-content:
+  /ws-admin/{workspaceId}/upload-scale:
+    post:
+      tags:
+        - manage-content
+      summary: Hochladen einer Skalendefinition
+      operationId: uploadScale
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: 'https://w3id.org/iqb/spec/acp-scale/0.2'
+
+      responses:
+        '200':
+          description: Daten hochgeladen
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ws-admin/{workspaceId}/delete-unit/{unitId}:
     delete:
       tags:
         - manage-content
-      summary: Löschen von Assessment Content
-      description: |
-        In einem Arbeitsbereich sind alle Informationen gespeichert, die für die Datenanalyse und Kodierung erforderlich 
-        sind. Diese Datenstrukturen sind als Dateien verfügbar.
-      operationId: uploadAssessmentContent
+      summary: Löschen von Unit-Daten
+      operationId: deleteUnitData
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/UnitId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+
+      responses:
+        '200':
+          description: Daten löschen
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ws-admin/{workspaceId}/delete-scale/{scaleId}:
+    delete:
+      tags:
+        - manage-content
+      summary: Löschen von Skalendaten
+      operationId: deleteScale
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ScaleId'
       requestBody:
         required: true
         content:
@@ -219,6 +272,22 @@ components:
         minimum: 1
         example: 354
       description: Eindeutige Kennung für den Arbeitsbereich
+    UnitId:
+      name: unitId
+      in: path
+      required: true
+      schema:
+        type: string
+        example: GZ88827a
+      description: Eindeutige Kennung für eine Unit
+    ScaleId:
+      name: scaleId
+      in: path
+      required: true
+      schema:
+        type: string
+        example: "iqb.bista-primar-de.2027"
+      description: Eindeutige Kennung für eine Skala
 
   schemas:
     # Response Wrappers
@@ -227,16 +296,59 @@ components:
       properties:
         name:
           type: string
-        numberOfUnits:
-          type: integer
-          format: int64
-        numberOfBooklets:
-          type: integer
-          format: int64
-      required:
-        - name
-        - numberOfUnits
-        - numberOfBooklets
+          description: Name of workspace
+        units:
+          type: array
+          description: List of units with data in this workspace
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              hasCodingScheme:
+                type: boolean
+                default: false
+              hasItemlist:
+                type: boolean
+                default: false
+            required:
+              - id
+        Scales:
+          type: array
+          description: List of scales in this workspace
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+            required:
+              - id
+              - type
+
+    Items:
+      description: List of items of one unit.
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+          useUnitAliasAsPrefix:
+            description: If true, the unique item identifier will be composed of the unit alias and the item id. If false, the item id has no prefix.
+            type: boolean
+            default: true
+          name:
+            type: string
+          sourceVariable:
+            description: Refers to the variable providing its score as item value
+            type: string
+        required:
+          - id
+          - sourceVariable
 
     unitResponses:
       type: object
