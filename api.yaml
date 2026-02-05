@@ -156,7 +156,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: 'https://w3id.org/iqb/spec/acp-scale/0.2'
+              $ref: 'https://w3id.org/iqb/spec/acp-scale/0.3'
 
       responses:
         '200':
