@@ -143,7 +143,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /ws-admin/{workspaceId}/upload-scale:
+  /ws-admin/{workspaceId}/upload-scale-base:
     post:
       tags:
         - manage-content
@@ -156,7 +156,34 @@ paths:
         content:
           application/json:
             schema:
-              $ref: 'https://w3id.org/iqb/spec/acp-scale/0.3'
+              $ref: 'https://w3id.org/iqb/spec/acp-scale-base/0.4'
+
+      responses:
+        '200':
+          description: Daten hochgeladen
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ws-admin/{workspaceId}/upload-scale-derived:
+    post:
+      tags:
+        - manage-content
+      summary: Hochladen einer Skalendefinition
+      operationId: uploadScale
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: 'https://w3id.org/iqb/spec/acp-scale-derived/0.4'
 
       responses:
         '200':
@@ -353,7 +380,7 @@ components:
     unitResponses:
       type: object
       properties:
-        surveyPart:
+        assessmentPart:
           type: string
         unitId:
           type: string
@@ -400,6 +427,23 @@ components:
                 type: integer
             required:
               - id
+              - value
+            additionalProperties: false
+        addOnScaleValues:
+          description: Für alle Skalen, für die zu einem anderen Zeitpunkt für die Person Werte ermittelt wurden, können hier Skalenwerte geliefert werden.
+          type: array
+          items:
+            type: object
+            properties:
+              surveyPartId:
+                type: string
+              scaleId:
+                type: string
+              value:
+                type: number
+            required:
+              - surveyPartId
+              - scaleId
               - value
             additionalProperties: false
       additionalProperties: false
