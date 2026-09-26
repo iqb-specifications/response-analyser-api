@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API für IQB-ResponseAnalyser
-  version: '0.2.0'
+  version: '0.3.0'
   description: |
     Der ResponseAnalyser ist ein Teil der [TBA-Architektur](https://iqb-berlin.github.io/tba-info) 
     für die Kodierung und die Datenanalyse von Lernstandserhebungen. Es werden Konfigurationsdaten 
@@ -10,8 +10,8 @@ info:
     name: Tech Support
     email: iqb-tbadev-support@hu-berlin.de
   license:
-    name: Apache 2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0.html
+    name: CC0
+    url: https://creativecommons.org/publicdomain/zero/1.0/deed.en
 
 servers:
   - url: https://www.iqb-responseanalyser.de/
@@ -51,8 +51,6 @@ paths:
               example: 365
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -81,8 +79,6 @@ paths:
           description: Arbeitsbereich angelegt
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -104,8 +100,6 @@ paths:
                 $ref: '#/components/schemas/WorkspaceInfo'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -126,8 +120,12 @@ paths:
               properties:
                 id:
                   type: string
+                aliases:
+                  type: array
+                  items:
+                    type: string
                 codingScheme:
-                  $ref: 'https://w3id.org/iqb/spec/coding-scheme/3.3'
+                  $ref: 'https://w3id.org/iqb/spec/coding-scheme/3.4'
                 items:
                   $ref: '#/components/schemas/Items'
 
@@ -136,8 +134,6 @@ paths:
           description: Daten hochgeladen
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -147,8 +143,8 @@ paths:
     post:
       tags:
         - manage-content
-      summary: Hochladen einer Skalendefinition
-      operationId: uploadScale
+      summary: Hochladen einer Skalendefinition - Basis-Skala
+      operationId: uploadScaleBase
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
@@ -163,8 +159,6 @@ paths:
           description: Daten hochgeladen
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -174,8 +168,8 @@ paths:
     post:
       tags:
         - manage-content
-      summary: Hochladen einer Skalendefinition
-      operationId: uploadScale
+      summary: Hochladen einer Skalendefinition - Abgeleitete Skala
+      operationId: uploadScaleDerived
       parameters:
         - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
@@ -190,8 +184,6 @@ paths:
           description: Daten hochgeladen
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -218,8 +210,6 @@ paths:
           description: Daten löschen
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -246,8 +236,6 @@ paths:
           description: Daten löschen
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -281,8 +269,6 @@ paths:
 
         '400':
           $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -373,6 +359,7 @@ components:
           sourceVariable:
             description: Refers to the variable providing its score as item value
             type: string
+        additionalProperties: false
         required:
           - id
           - sourceVariable
@@ -380,16 +367,12 @@ components:
     unitResponses:
       type: object
       properties:
-        assessmentPart:
-          type: string
-        unitId:
-          type: string
         unitAlias:
           type: string
         responses:
           type: array
           items:
-            $ref: 'https://w3id.org/iqb/spec/response/1.5'
+            $ref: 'https://w3id.org/iqb/spec/response/2.0'
           minItems: 1
           example:
             - id: "M23441_2"
@@ -400,8 +383,9 @@ components:
               value: "wunderbAre Sache!"
               code: 0
               score: 0
+      additionalProperties: false
       required:
-        - unitId
+        - unitAlias
         - responses
 
     EvaluationInput:
@@ -435,14 +419,11 @@ components:
           items:
             type: object
             properties:
-              surveyPartId:
-                type: string
               scaleId:
                 type: string
               value:
                 type: number
             required:
-              - surveyPartId
               - scaleId
               - value
             additionalProperties: false
@@ -521,26 +502,20 @@ components:
           items:
             type: object
             properties:
-              surveyPartId:
-                type: string
               scaleId:
                 type: string
               value:
                 type: number
             required:
-              - surveyPartId
               - scaleId
               - value
             additionalProperties: false
           example:
-            - surveyPartId: "IQBSCP-A-923"
-              scaleId: "IQB.FCSum"
+            - scaleId: "IQB.FCSum"
               value: 1
-            - surveyPartId: "IQBSCP-A-923"
-              scaleId: "IQB.FCRatio"
+            - scaleId: "IQB.FCRatio"
               value: 3
-            - surveyPartId: "IQBSCP-A-923"
-              scaleId: "IQB.Komp.GER"
+            - scaleId: "IQB.Komp.GER"
               value: 34
       additionalProperties: false
 
@@ -572,18 +547,6 @@ components:
             "message": "Der Parameter 'Name des neuen Arbeitsbereiches' ist erforderlich"
             }
 
-    Forbidden:
-      description: Zugriff verweigert - unzureichende Berechtigungen
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example: |
-            {
-            "code": "ACCESS_DENIED",
-            "message": "Sie haben keine Berechtigung für den Zugriff auf diese Ressource"
-            }
-
     NotFound:
       description: Ressource nicht gefunden
       content:
@@ -608,11 +571,3 @@ components:
             "message": "Ein unerwarteter Fehler ist aufgetreten"
             }
 
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-security:
-  - BearerAuth: []
