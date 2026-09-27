@@ -504,11 +504,19 @@ components:
             properties:
               scaleId:
                 type: string
+              status:
+                type: string:
+                enum:
+                  - VALID
+                  - SCALE_DEF_ERROR
+                  - CODING_ERROR
+                  - INSUFFICIENT_SOURCE
+                default: INSUFFICIENT_SOURCE
               value:
                 type: number
+                default: 0
             required:
               - scaleId
-              - value
             additionalProperties: false
           example:
             - scaleId: "IQB.FCSum"
