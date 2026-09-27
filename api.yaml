@@ -476,14 +476,16 @@ components:
                 code: 0
                 score: 0
         itemValues:
-          description: Für alle Items, zu denen Antworten vorlagen, werden Werte geliefert.
+          description: Für alle Items, zu denen Code und Score ermittelt wurde, werden Werte geliefert.
           type: array
           items:
             type: object
             properties:
               id:
                 type: string
-              value:
+              code:
+                type: integer
+              score:
                 type: integer
             required:
               - id
@@ -491,11 +493,14 @@ components:
             additionalProperties: false
           example:
             - id: "M23441a"
-              value: -99
+              code: 1
+              score: -99
             - id: "M23441b"
-              value: 0
+              code: 23
+              score: 0
             - id: "M23441c"
-              value: 1
+              code: 1
+              score: 1
         scaleValues:
           description: Für alle Skalen, zu denen Antworten oder zusätzliche Itemwerte vorlagen, werden Werte geliefert.
           type: array
@@ -505,7 +510,7 @@ components:
               scaleId:
                 type: string
               status:
-                type: string:
+                type: string
                 enum:
                   - VALID
                   - SCALE_DEF_ERROR
