@@ -388,6 +388,33 @@ components:
         - unitAlias
         - responses
 
+    itemValues:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+          code:
+            type: integer
+          score:
+            type: integer
+        required:
+          - id
+          - code
+          - score
+        additionalProperties: false
+      example:
+        - id: "M23441a"
+          code: 1
+          score: -99
+        - id: "M23441b"
+          code: 23
+          score: 0
+        - id: "M23441c"
+          code: 1
+          score: 1
+
     EvaluationInput:
       description: |
         Es werden alle Antworten einer Person übergeben. Das Format 
@@ -401,18 +428,7 @@ components:
             $ref: '#/components/schemas/unitResponses'
           minItems: 1
         addOnItems:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-              value:
-                type: integer
-            required:
-              - id
-              - value
-            additionalProperties: false
+          $ref: '#/components/schemas/itemValues'
         addOnScaleValues:
           description: Für alle Skalen, für die zu einem anderen Zeitpunkt für die Person Werte ermittelt wurden, können hier Skalenwerte geliefert werden.
           type: array
@@ -449,11 +465,14 @@ components:
               score: 1
         addOnItems:
           - id: "K3445"
-            value: 1
+            code: 2
+            score: 1
           - id: "K3335"
-            value: -99
+            code: 5
+            score: -99
           - id: "K0445"
-            value: 0
+            code: 0
+            score: 0
 
     EvaluationOutput:
       type: object
@@ -476,31 +495,8 @@ components:
                 code: 0
                 score: 0
         itemValues:
-          description: Für alle Items, zu denen Code und Score ermittelt wurde, werden Werte geliefert.
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-              code:
-                type: integer
-              score:
-                type: integer
-            required:
-              - id
-              - value
-            additionalProperties: false
-          example:
-            - id: "M23441a"
-              code: 1
-              score: -99
-            - id: "M23441b"
-              code: 23
-              score: 0
-            - id: "M23441c"
-              code: 1
-              score: 1
+          $ref: '#/components/schemas/itemValues'
+
         scaleValues:
           description: Für alle Skalen, zu denen Antworten oder zusätzliche Itemwerte vorlagen, werden Werte geliefert.
           type: array
