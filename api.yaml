@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: API für IQB-ResponseAnalyser
-  version: 0.4.0-draft.1
-  description: 'Entwurf auf Basis der veröffentlichten API 0.3.0. Interner ResponseAnalyser ohne Frontend,
-    Authentifizierung oder Rollenmodell. Erste Ausbaustufe: eine Dienstinstanz, persistente Workspace-Definitionen,
-    keine dauerhafte Speicherung von Personenantworten oder Ergebnissen. Spätere Skalierung wird durch getrennte
-    Verarbeitung und Speicherung vorbereitet, ist kein Abnahmekriterium dieser Stufe. Der Aufrufer verantwortet
-    Personenbezug und Ergebnisspeicherung. Der Dienst besitzt kein Messzeitpunktmodell; fachlich verschiedene Skalen
-    werden durch unterschiedliche scaleId unterschieden.
+  version: 0.4.0-draft.2
+  description: 'Entwurf als Folgeänderung zu API-PR #1: Item Matrix Rules 0.1 als gemeinsame Konfiguration
+    und atomarer Bulk-Upload. Interner ResponseAnalyser ohne Frontend, Authentifizierung oder Rollenmodell.
+    Erste Ausbaustufe: eine Dienstinstanz, persistente Workspace-Definitionen, keine dauerhafte Speicherung
+    von Personenantworten oder Ergebnissen. Spätere Skalierung wird durch getrennte Verarbeitung und Speicherung
+    vorbereitet, ist kein Abnahmekriterium dieser Stufe. Der Aufrufer verantwortet Personenbezug und Ergebnisspeicherung.
+    Der Dienst besitzt kein Messzeitpunktmodell; fachlich verschiedene Skalen werden durch unterschiedliche
+    scaleId unterschieden.
 
     Rechenprofil mean-v1: Alle Basismethoden einschließlich WLE und CODE_COUNT bilden vorläufig den ungewichteten
     arithmetischen Mittelwert verwendbarer Item-Scores. Alle Derived-Methoden bilden den Mittelwert verwendbarer
@@ -37,8 +38,8 @@ paths:
       tags:
       - admin
       summary: Anlegen Arbeitsbereich
-      description: Legt ohne Request-Body einen namenlosen Workspace mit effektiver Defaultkonfiguration an und
-        liefert dessen ID zurück. Es gibt keinen Workspace-State und keine Freigabeoperation.
+      description: Legt ohne Request-Body einen namenlosen Workspace mit effektiver Defaultkonfiguration an
+        und liefert dessen ID zurück. Es gibt keinen Workspace-State und keine Freigabeoperation.
       operationId: putWorkspace
       responses:
         '200':
@@ -59,8 +60,8 @@ paths:
       tags:
       - admin
       summary: Allgemeine Daten des Arbeitsbereiches werden abgefragt.
-      description: Abruf von Unitliste und Skalenliste. Workspaces besitzen weder Namen noch Lifecycle-State und
-        werden ausschließlich über workspaceId adressiert.
+      description: Abruf von Unitliste und Skalenliste. Workspaces besitzen weder Namen noch Lifecycle-State
+        und werden ausschließlich über workspaceId adressiert.
       operationId: getWorkspaceInfo
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
@@ -107,27 +108,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                id:
-                  type: string
-                aliases:
-                  type: array
-                  items:
-                    type: string
-                  uniqueItems: true
-                  description: Bei fehlender oder leerer Liste wird id als einziger Alias verwendet. Aliase müssen
-                    innerhalb des Workspace eindeutig sein.
-                codingScheme:
-                  $ref: https://w3id.org/iqb/spec/coding-scheme/3.4
-                items:
-                  $ref: '#/components/schemas/Items'
-                  description: Bei fehlender oder leerer Itemliste automatische Erzeugung nach itemNaming; sonst
-                    explizites Mapping. Explizite Präfixbildung bleibt unitAlias + item.id ohne automatischen separator.
-              required:
-              - id
-              - codingScheme
-              additionalProperties: false
+              $ref: '#/components/schemas/UnitUpload'
       responses:
         '200':
           description: Daten hochgeladen
@@ -165,7 +146,8 @@ paths:
           $ref: '#/components/responses/InternalError'
       description: Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
         Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
-        Abhängigkeiten werden bei der Auswertung geprüft.
+        Abhängigkeiten werden bei der Auswertung geprüft. Basis- und abgeleitete Skalen teilen einen ID-Namensraum;
+        ein Typwechsel einer vorhandenen Skala wird als INVALID_PARAMETER abgewiesen.
   /{workspaceId}/upload-scale-derived:
     post:
       tags:
@@ -191,7 +173,8 @@ paths:
           $ref: '#/components/responses/InternalError'
       description: Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
         Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
-        Abhängigkeiten werden bei der Auswertung geprüft.
+        Abhängigkeiten werden bei der Auswertung geprüft. Basis- und abgeleitete Skalen teilen einen ID-Namensraum;
+        ein Typwechsel einer vorhandenen Skala wird als INVALID_PARAMETER abgewiesen.
   /{workspaceId}/delete-unit/{unitId}:
     delete:
       tags:
@@ -210,8 +193,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-      description: Löscht die bezeichnete Definition atomar. Der Aufrufer koordiniert Inhaltsänderungen und laufende
-        Auswertungen.
+      description: Löscht die bezeichnete Definition atomar. Der Aufrufer koordiniert Inhaltsänderungen und
+        laufende Auswertungen.
   /{workspaceId}/delete-scale/{scaleId}:
     delete:
       tags:
@@ -230,8 +213,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-      description: Löscht die bezeichnete Definition atomar. Der Aufrufer koordiniert Inhaltsänderungen und laufende
-        Auswertungen.
+      description: Löscht die bezeichnete Definition atomar. Der Aufrufer koordiniert Inhaltsänderungen und
+        laufende Auswertungen.
   /{workspaceId}/evaluate:
     post:
       tags:
@@ -242,34 +225,35 @@ paths:
 
         1. Antworten pro unitAlias kodieren. Coding Scheme wird unverändert an den Autocoder weitergegeben.
 
-        2. Explizite oder automatische Itemzuordnung anwenden; codingParameters in Code/Score-Werte überführen.
+        2. Explizite oder automatische Itemzuordnung anwenden; itemMatrixRules zur Code/Score-Umsetzung anwenden.
         Ein Rohantwortwert wird nie ersatzweise als Score verwendet.
 
         3. Zusatzitems mit berechneten Items zusammenführen: berechneter Eintrag gewinnt vollständig.
 
-        4. Relevante Skalen bestimmen. Keine zugeordneten Itemeinträge: Basisskala weglassen. Relevante Skalen mit
-        ausschließlich Missing-Items bleiben relevant und werden mit Fehlerstatus berichtet.
+        4. Relevante Skalen bestimmen. Keine zugeordneten Itemeinträge: Basisskala weglassen. Relevante Skalen
+        mit ausschließlich Missing-Items bleiben relevant und werden mit Fehlerstatus berichtet.
 
-        5. mean-v1 berechnen: jede Basismethode = ungewichteter Mittelwert verwendbarer Scores; konfigurierte MISSING-Scores
-        nicht mitzählen. minItemNumber zählt verwendbare Scores, einschließlich gültiger 0. Unterhalb der Mindestanzahl
-        oder ohne einen verwendbaren Score: INSUFFICIENT_SOURCE. Der Mindestwert 0 hebt nur die Anzahlbeschränkung
-        auf, erlaubt keine Mittelwertbildung über eine leere Liste.
+        5. mean-v1 berechnen: jede Basismethode = ungewichteter Mittelwert verwendbarer Scores; in missingScores
+        aufgeführte Item-Scores nicht mitzählen. minItemNumber zählt verwendbare Scores, einschließlich gültiger
+        0. Unterhalb der Mindestanzahl oder ohne einen verwendbaren Score: INSUFFICIENT_SOURCE. Der Mindestwert
+        0 hebt nur die Anzahlbeschränkung auf, erlaubt keine Mittelwertbildung über eine leere Liste.
 
-        6. Derived: zuerst berechnete Quellresultate verwenden, sonst Zusatzskalenwerte. MAP verwendet nur die erste
-        Quelle; deren Mittelwert ist ihr Wert selbst. SUM und MEAN verwenden vorläufig beide den ungewichteten Mittelwert
-        aller erforderlichen Quellen. Zu wenige gültige Quellwerte: INSUFFICIENT_SOURCE. Ein berechnetes Fehlerresultat
-        wird nie durch einen kollidierenden Zusatzwert ersetzt.
+        6. Derived: zuerst berechnete Quellresultate verwenden, sonst Zusatzskalenwerte. MAP verwendet nur
+        die erste Quelle; deren Mittelwert ist ihr Wert selbst. SUM und MEAN verwenden vorläufig beide den
+        ungewichteten Mittelwert aller erforderlichen Quellen. Zu wenige gültige Quellwerte: INSUFFICIENT_SOURCE.
+        Ein berechnetes Fehlerresultat wird nie durch einen kollidierenden Zusatzwert ersetzt.
 
         7. Alle relevanten Skalen berichten. Vorschlag für Fehlerabgrenzung: fehlerhafte Definition oder effektiver
         Zyklus = SCALE_DEF_ERROR; bei korrekter Definition zu wenige verwendbare Items/Quellen = INSUFFICIENT_SOURCE;
-        sonst ein nicht durch codingParameters behandelbarer Kodierfehler = CODING_ERROR. VALID enthält value; Fehler
-        enthalten kein value. Ein Nicht-Erfolgsstatus gilt niemals als numerischer Quellwert.
+        sonst ein nicht durch itemMatrixRules behandelbarer Kodierfehler = CODING_ERROR. VALID enthält value;
+        Fehler enthalten kein value. Ein Nicht-Erfolgsstatus gilt niemals als numerischer Quellwert.
 
-        Die extern referenzierten Skalenformate bleiben erhalten, ihre spätere methodenspezifische Auswertung wird
-        durch das ausdrücklich ausgewiesene Profil mean-v1 vorläufig ersetzt. Methodenparameter und Gewichte werden
-        gespeichert, aber nicht für die Mittelwertbildung verwendet. Keine WLE-Parameterpflicht oder Ratio-Nennerprüfung
-        in dieser Stufe; Struktur und effektive Abhängigkeiten werden weiterhin geprüft. Der Aufrufer verhindert
-        Überschneidungen zwischen mehrteiligen Imports und Auswertungen; der Dienst erzwingt hierfür keinen Workspace-State.'
+        Die extern referenzierten Skalenformate bleiben erhalten, ihre spätere methodenspezifische Auswertung
+        wird durch das ausdrücklich ausgewiesene Profil mean-v1 vorläufig ersetzt. Methodenparameter und Gewichte
+        werden gespeichert, aber nicht für die Mittelwertbildung verwendet. Keine WLE-Parameterpflicht oder
+        Ratio-Nennerprüfung in dieser Stufe; Struktur und effektive Abhängigkeiten werden weiterhin geprüft.
+        Der Aufrufer verhindert Überschneidungen zwischen mehrteiligen Imports und Auswertungen; der Dienst
+        erzwingt hierfür keinen Workspace-State.'
       operationId: evaluateResponses
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
@@ -301,7 +285,7 @@ paths:
       operationId: getWorkspaceConfiguration
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
-      description: Liefert codingParameters und Itembenennungsregeln einschließlich Defaults.
+      description: Liefert itemMatrixRules einschließlich effektiver Defaults.
       responses:
         '200':
           description: Operation erfolgreich
@@ -322,8 +306,8 @@ paths:
       operationId: putWorkspaceConfiguration
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
-      description: Ersetzt die Konfiguration atomar; nicht angegebene Werte werden auf Defaults zurückgesetzt. Kein
-        Merge mit der früheren Konfiguration. Der Aufrufer koordiniert die Änderung mit laufenden Auswertungen.
+      description: Ersetzt die Konfiguration atomar; nicht angegebene Werte werden auf Defaults zurückgesetzt.
+        Kein Merge mit der früheren Konfiguration. Der Aufrufer koordiniert die Änderung mit laufenden Auswertungen.
       responses:
         '200':
           description: Operation erfolgreich
@@ -351,9 +335,9 @@ paths:
       operationId: resetWorkspace
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
-      description: Löscht Units, Aliase und Skalen atomar und setzt die Konfiguration auf Defaults zurück. Die Workspace-ID
-        bleibt erhalten. Wiederholbar. Der Aufrufer koordiniert alte Ergebnisse und startet bis zum abgeschlossenen
-        Neuimport keine Auswertungen.
+      description: Löscht Units, Aliase und Skalen atomar und setzt die Konfiguration auf Defaults zurück.
+        Die Workspace-ID bleibt erhalten. Wiederholbar. Der Aufrufer koordiniert alte Ergebnisse und startet
+        bis zum abgeschlossenen Neuimport keine Auswertungen.
       responses:
         '200':
           description: Operation erfolgreich
@@ -363,6 +347,87 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /{workspaceId}/upload-content:
+    post:
+      tags:
+      - manage-content
+      operationId: uploadContentBulk
+      summary: Units, Skalen und Konfiguration gemeinsam hochladen
+      description: 'Synchroner atomarer Bulk-Upload. Zunächst den gesamten Request validieren, dann alle Änderungen
+        in einer Transaktion übernehmen. Jeder Fehler verwirft den gesamten Upload; keine Teilerfolge und kein
+        207. Definitionen gleicher ID werden ersetzt; nicht gelieferte Definitionen bleiben bestehen. configuration
+        wird bei Angabe vollständig ersetzt, bei Weglassen unverändert belassen. Mehrfach genannte Unit-IDs
+        und mehrfach genannte Skalen-IDs (auch über baseScales/derivedScales hinweg) sind INVALID_PARAMETER.
+        Basis- und abgeleitete Skalen teilen einen ID-Namensraum; der Wechsel des Typs einer vorhandenen Skala
+        wird mit INVALID_PARAMETER abgewiesen. Aliase werden gegen den resultierenden Workspace geprüft, einschließlich
+        unveränderter Units; gleichzeitige Aliaswechsel werden anhand des Endzustands geprüft. Vorwärtsreferenzen
+        innerhalb und außerhalb des Pakets bleiben wie bei Einzeluploads erlaubt; fachliche Abhängigkeiten
+        werden bei Evaluate geprüft. Identische Wiederholungen ohne zwischenzeitliche Änderungen erzeugen denselben
+        Definitionsstand. Zeitgleich gestartete Auswertungen sehen einen vollständigen alten oder neuen Stand,
+        niemals einen Teilimport. Der Aufrufer koordiniert weiterhin die Zuordnung alter Ergebnisse. Ein Import
+        über mehrere Requests ist nicht atomar. Bei Überschreitung der vom Betreiber dokumentierten Request-Größenbegrenzung:
+        413 ohne Änderungen. Ein Timeout kann nach erfolgreichem Commit auftreten und bestätigt keinen Rollback.
+        Fehlerdetails können issues mit path (JSON Pointer), code und message enthalten, z. B. /units/1/aliases/0;
+        keine Antwortdaten in Fehlermeldungen.'
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkContentUpload'
+            example: &id001
+              units:
+              - id: U1
+                codingScheme:
+                  version: '3.4'
+                  variableCodings: []
+              baseScales:
+              - id: B1
+                method: SCORE_MEAN
+                items:
+                - id: U1v1
+              derivedScales:
+              - id: D1
+                name:
+                - lang: de
+                  value: Abgeleitete Skala
+                method: MAP
+                sources:
+                - B1
+              configuration:
+                itemMatrixRules:
+                  missingElse:
+                    code: 0
+                    score: -99
+      responses:
+        '200':
+          description: Gesamtes Paket übernommen. Zähler beziehen sich auf den Request, nicht den Gesamtbestand.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkContentUploadResult'
+              example:
+                units: 1
+                baseScales: 1
+                derivedScales: 1
+                configurationUpdated: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '413':
+          description: Request zu groß; keine Änderungen übernommen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: PAYLOAD_TOO_LARGE
+                message: Upload überschreitet die konfigurierte Größenbegrenzung.
 components:
   parameters:
     WorkspaceId:
@@ -431,8 +496,8 @@ components:
       - Scales
       additionalProperties: false
     Items:
-      description: Explizite Itemzuordnung. useUnitAliasAsPrefix default true. Diese Liste hat Vorrang vor automatischer
-        Itembenennung; deren drei Sonderregeln gelten hier nicht.
+      description: Explizite Itemzuordnung. useUnitAliasAsPrefix default true. Diese Liste hat Vorrang vor
+        automatischer Itembenennung; deren drei Sonderregeln gelten hier nicht.
       type: array
       items:
         type: object
@@ -440,8 +505,8 @@ components:
           id:
             type: string
           useUnitAliasAsPrefix:
-            description: If true, the unique item identifier will be composed of the unit alias and the item id.
-              If false, the item id has no prefix.
+            description: If true, the unique item identifier will be composed of the unit alias and the item
+              id. If false, the item id has no prefix.
             type: boolean
             default: true
           name:
@@ -503,13 +568,13 @@ components:
         code: 1
         score: 1
     EvaluationInput:
-      description: Alle verfügbaren Antworten und optional zusätzliche Item-/Skalenwerte einer Person. Keine Personen-ID
-        und keine Messzeitpunktinformation. Unterschiedliche fachliche Skalen werden ausschließlich durch unterschiedliche
-        scaleId unterschieden. Berechnete Items haben bei gleicher id vollständig Vorrang vor Zusatzitems. Berechnete
-        Skalenresultate haben bei gleicher scaleId auch im Fehlerfall Vorrang vor Zusatzwerten; es erfolgt kein
-        feldweises Zusammenführen und kein Ersatz eines Fehlers durch den Zusatzwert. Doppelte IDs innerhalb einer
-        Zusatzliste oder doppelte automatische Item-IDs werden abgewiesen. Ohne responses sind Anfragen nur mit
-        Zusatzwerten möglich. Eine leere Eingabe liefert leere Ergebnislisten.
+      description: Alle verfügbaren Antworten und optional zusätzliche Item-/Skalenwerte einer Person. Keine
+        Personen-ID und keine Messzeitpunktinformation. Unterschiedliche fachliche Skalen werden ausschließlich
+        durch unterschiedliche scaleId unterschieden. Berechnete Items haben bei gleicher id vollständig Vorrang
+        vor Zusatzitems. Berechnete Skalenresultate haben bei gleicher scaleId auch im Fehlerfall Vorrang vor
+        Zusatzwerten; es erfolgt kein feldweises Zusammenführen und kein Ersatz eines Fehlers durch den Zusatzwert.
+        Doppelte IDs innerhalb einer Zusatzliste oder doppelte automatische Item-IDs werden abgewiesen. Ohne
+        responses sind Anfragen nur mit Zusatzwerten möglich. Eine leere Eingabe liefert leere Ergebnislisten.
       type: object
       properties:
         responses:
@@ -521,8 +586,8 @@ components:
           $ref: '#/components/schemas/itemValues'
         addOnScaleValues:
           description: Zusätzliche numerische Quellskalenwerte; keine Messzeitpunkt-Metadaten. Bei Namenskonflikt
-            hat ein ermitteltes Skalenresultat Vorrang, auch mit Fehlerstatus. Diese Werte dienen als Quellen und
-            werden nicht allein deshalb als eigene berechnete Ergebnisse ausgegeben.
+            hat ein ermitteltes Skalenresultat Vorrang, auch mit Fehlerstatus. Diese Werte dienen als Quellen
+            und werden nicht allein deshalb als eigene berechnete Ergebnisse ausgegeben.
           type: array
           items:
             type: object
@@ -592,13 +657,13 @@ components:
             $ref: '#/components/schemas/ScaleResult'
           description: Relevanz und Berechenbarkeit sind getrennt. Eine Basisskala ohne irgendeinen zugeordneten
             Itemeintrag in der zusammengeführten Itemliste wird nicht berichtet. Auch ein Itemeintrag mit MISSING
-            begründet Relevanz; er liefert jedoch keinen verwendbaren Score. Alle relevanten Skalen werden mit VALID
-            und value oder einem Fehlerstatus ohne value berichtet. Derived-Relevanz entsteht durch mindestens eine
-            relevante effektive Quellskala oder einen zusätzlich gelieferten effektiven Quellwert; ohne jede solche
-            Quelle entfällt die Skala. Für MAP ist ausschließlich sources[0] effektiv, weitere Quellen werden nicht
-            ausgewertet, begründen keine Relevanz und keine Mindestanforderung. Für andere Derived-Methoden sind
-            alle aufgeführten Quellen erforderlich. Relevanz wird entlang der effektiven Abhängigkeiten fortgepflanzt.
-            Reine Zusatzskalen werden nicht als berechnete Resultate durchgereicht.
+            begründet Relevanz; er liefert jedoch keinen verwendbaren Score. Alle relevanten Skalen werden
+            mit VALID und value oder einem Fehlerstatus ohne value berichtet. Derived-Relevanz entsteht durch
+            mindestens eine relevante effektive Quellskala oder einen zusätzlich gelieferten effektiven Quellwert;
+            ohne jede solche Quelle entfällt die Skala. Für MAP ist ausschließlich sources[0] effektiv, weitere
+            Quellen werden nicht ausgewertet, begründen keine Relevanz und keine Mindestanforderung. Für andere
+            Derived-Methoden sind alle aufgeführten Quellen erforderlich. Relevanz wird entlang der effektiven
+            Abhängigkeiten fortgepflanzt. Reine Zusatzskalen werden nicht als berechnete Resultate durchgereicht.
           example:
           - scaleId: base.example
             status: VALID
@@ -608,8 +673,8 @@ components:
         calculationProfile:
           type: string
           const: mean-v1
-          description: Explizites vorläufiges Rechenprofil. Insbesondere keine fachlich differenzierte WLE-, SUM-,
-            CODE_COUNT- oder MAP-Berechnung.
+          description: Explizites vorläufiges Rechenprofil. Insbesondere keine fachlich differenzierte WLE-,
+            SUM-, CODE_COUNT- oder MAP-Berechnung.
       additionalProperties: false
       required:
       - calculationProfile
@@ -631,116 +696,56 @@ components:
       required:
       - code
       - message
-    CodingParameters:
-      description: 'Some parameters for coding and analysis in general Unveränderte Quellstruktur mit lokal aufgelöster
-        itemValueType-Referenz. Kein separates missingMap-Feld. Vorschlag für Laufzeitdefaults: FULL_CREDIT=1, NO_CREDIT=0,
-        MISSING=-99; fehlende Overrides behalten diese Defaults. statusMapping default []; nicht zugeordnete Status
-        außer CODING_COMPLETE werden als MISSING behandelt. Doppelte Typdefinitionen und mehrfach zugeordnete Status
-        werden semantisch abgewiesen. Für nicht CODING_COMPLETE wird score aus dem Statusmapping bestimmt; ein vorhandener
-        ganzzahliger code bleibt erhalten, sonst wird der konfigurierte MISSING-Wert als code verwendet. CODING_COMPLETE
-        ohne ganzzahligen code oder score ist ein Kodierfehler. Die Quellstruktur erlaubt nur ihre fünf Statusnamen;
-        sie wird hier nicht stillschweigend erweitert.'
-      type: object
-      properties:
-        itemValues:
-          description: Mapping logical item values to numeric values. Standards are 1-FULL_CREDIT, 0-NO_CREDIT,
-            -99-MISSING.
-          type: array
-          items:
-            type: object
-            properties:
-              type:
-                $ref: '#/components/schemas/CodingParameters/$defs/itemValueType'
-              value:
-                type: integer
-        statusMapping:
-          description: Rules how to translate response status into item value
-          type: array
-          items:
-            type: object
-            properties:
-              itemValueType:
-                $ref: '#/components/schemas/CodingParameters/$defs/itemValueType'
-              status:
-                type: array
-                items:
-                  type: string
-                  enum:
-                  - UNSET
-                  - NOT_REACHED
-                  - DISPLAYED
-                  - INVALID
-                  - CODING_ERROR
-                minItems: 1
-            required:
-            - itemValueType
-            - status
-            additionalProperties: false
-      additionalProperties: false
-      $defs:
-        itemValueType:
-          type: string
-          enum:
-          - FULL_CREDIT
-          - NO_CREDIT
-          - MISSING
-      x-source: https://github.com/iqb-specifications/acp-index/blob/4342b0dcfb2840eab51d3b54165877a64a874909/acp-index.schema.json#L303
-    ItemNaming:
-      type: object
-      additionalProperties: false
-      default: &id001
-        separator: ''
-        omitPrefixIfVariableIdLongerThan: null
-        useUnitAliasIfSingleCodingCompleteVariable: false
-      description: 'Konfigurationsvorschlag für automatisch erzeugte Items, wenn items fehlt oder leer ist. Default:
-        unitAlias + variableId. Die ID der kodierten Antwort ist variableId. Regelreihenfolge: (1) Bei aktivierter
-        Einzelvariablenregel und genau einer Antwort mit CODING_COMPLETE erhält nur deren Item den Unit-Alias. (2)
-        Sonst entfällt das Präfix, wenn die variableId länger als die konfigurierte Schwelle ist. (3) Sonst unitAlias
-        + separator + variableId. Länge wird in Unicode-Codepunkten gemessen. Alle Antwortvariablen bleiben Kandidaten;
-        nicht fertig kodierte Antworten unterliegen codingParameters. Explizite nicht leere Itemlisten werden durch
-        diese Regeln nicht verändert. Namenskollisionen werden als INVALID_PARAMETER abgewiesen, nicht still überschrieben.'
-      properties:
-        separator:
-          type: string
-          default: ''
-          description: Trennzeichen zwischen Unit-Alias und Variablen-ID bei automatischer Präfixbildung.
-        omitPrefixIfVariableIdLongerThan:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          default: null
-          description: null deaktiviert die Regel. Bei 4 entfällt das Präfix erst ab 5 Zeichen.
-        useUnitAliasIfSingleCodingCompleteVariable:
-          type: boolean
-          default: false
-          description: Wenn genau eine Antwortvariable CODING_COMPLETE hat, wird deren Item allein mit dem Unit-Alias
-            benannt.
     WorkspaceConfiguration:
       type: object
       additionalProperties: false
       properties:
-        codingParameters:
-          $ref: '#/components/schemas/CodingParameters'
-        itemNaming:
-          $ref: '#/components/schemas/ItemNaming'
-      default: &id002
-        codingParameters:
-          itemValues:
-          - type: FULL_CREDIT
-            value: 1
-          - type: NO_CREDIT
-            value: 0
-          - type: MISSING
-            value: -99
-          statusMapping: []
-        itemNaming: *id001
-      example: *id002
-      description: Workspace-Konfiguration. PUT ersetzt die gesamte Konfiguration; ausgelassene Felder und Unterfelder
-        erhalten die dokumentierten Laufzeitdefaults. GET liefert die effektive Konfiguration einschließlich Defaults.
-        JSON-Schema-default ist eine Annotation; die Anwendung muss die Defaults selbst anwenden. Negative MISSING-Zahl
-        und eindeutige Zuordnungen werden semantisch geprüft. Die vorgeschlagenen Statusdefaults und Ersatzcodes
-        sind Entwurfsentscheidungen.
+        itemMatrixRules:
+          $ref: '#/components/schemas/ItemMatrixRules'
+        missingScores:
+          type: array
+          items:
+            type: integer
+          uniqueItems: true
+          default:
+          - -99
+          description: Explizit reservierte Missing-Scores für Itemwerte; Default [-99]. Nur diese Zahlen werden
+            aus mean-v1 ausgeschlossen, unabhängig von Code und Herkunft (berechnet oder zusätzlich). Andere
+            negative Scores sind gültig. [] deaktiviert den Ausschluss. Wer weitere Missing-Codes wie -98 verwendet,
+            muss sie hier eintragen. Die Statusumsetzung durch itemMatrixRules klassifiziert einen Score nicht
+            automatisch als Missing. Gilt nicht für Skalenwerte. Feld gehört zur API-Auswertungskonfiguration,
+            nicht zum externen Item-Matrix-Schema.
+      default:
+        itemMatrixRules:
+          itemNaming:
+            separator: ''
+            omitUnitAliasIfVariableIdLongerThan: 0
+            useUnitAliasIfSingleVariable: false
+          missingsMap: []
+          missingElse:
+            code: 0
+            score: -99
+        missingScores:
+        - -99
+      example:
+        itemMatrixRules:
+          itemNaming:
+            separator: ''
+            omitUnitAliasIfVariableIdLongerThan: 0
+            useUnitAliasIfSingleVariable: false
+          missingsMap: []
+          missingElse:
+            code: 0
+            score: -99
+        missingScores:
+        - -99
+      description: Workspace-Konfiguration. Einzige Quelle für automatische Itembenennung und Statusumsetzung
+        ist itemMatrixRules. codingParameters und separates itemNaming werden nicht mehr akzeptiert. PUT ersetzt
+        vollständig; ausgelassene Felder und Unterfelder erhalten die dokumentierten Defaults, einschließlich
+        missingsMap=[] und missingElse={code:0,score:-99}. GET und PUT liefern die effektive Konfiguration.
+        JSON-Schema-Defaults werden durch die Anwendung angewandt. Reset stellt diese Defaults wieder her.
+        missingScores steuert separat die Verwendbarkeit von Item-Scores; bei Weglassen gilt [-99], auch nach
+        Reset.
     ScaleResult:
       type: object
       additionalProperties: false
@@ -773,6 +778,110 @@ components:
           not:
             required:
             - value
+    UnitUpload:
+      type: object
+      properties:
+        id:
+          type: string
+        aliases:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+          description: Bei fehlender oder leerer Liste wird id als einziger Alias verwendet. Aliase müssen
+            innerhalb des Workspace eindeutig sein.
+        codingScheme:
+          $ref: https://w3id.org/iqb/spec/coding-scheme/3.4
+        items:
+          $ref: '#/components/schemas/Items'
+          description: Bei fehlender oder leerer Itemliste automatische Erzeugung nach itemMatrixRules.itemNaming;
+            sonst explizites Mapping. Explizite Präfixbildung bleibt unitAlias + item.id ohne automatischen
+            separator.
+      required:
+      - id
+      - codingScheme
+      additionalProperties: false
+      description: Gemeinsames Format für Einzel- und Bulk-Upload. variableCodings.id muss innerhalb des Kodierschemas
+        eindeutig sein; doppelte IDs sind semantisch INVALID_PARAMETER. Die Anzahl der definierten Variablen
+        ist die stabile Grundlage für die automatische Einzelvariablenbenennung.
+    BulkContentUpload:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: Atomarer Upsert der angegebenen Definitionen. Ausgelassene Listen und Konfiguration bleiben
+        unverändert. Keine Löschung nicht enthaltener Definitionen. Angegebene Listen sind nicht leer. configuration
+        ersetzt die gesamte Konfiguration einschließlich Defaults.
+      properties:
+        units:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/UnitUpload'
+        baseScales:
+          type: array
+          minItems: 1
+          items:
+            $ref: https://w3id.org/iqb/spec/acp-scale-base/0.4
+        derivedScales:
+          type: array
+          minItems: 1
+          items:
+            $ref: https://w3id.org/iqb/spec/acp-scale-derived/0.4
+        configuration:
+          $ref: '#/components/schemas/WorkspaceConfiguration'
+      example: *id001
+    BulkContentUploadResult:
+      type: object
+      additionalProperties: false
+      required:
+      - units
+      - baseScales
+      - derivedScales
+      - configurationUpdated
+      properties:
+        units:
+          type: integer
+          minimum: 0
+          description: Anzahl übernommener Einträge im Request (neu oder ersetzt).
+        baseScales:
+          type: integer
+          minimum: 0
+          description: Anzahl übernommener Einträge im Request (neu oder ersetzt).
+        derivedScales:
+          type: integer
+          minimum: 0
+          description: Anzahl übernommener Einträge im Request (neu oder ersetzt).
+        configurationUpdated:
+          type: boolean
+    ItemMatrixRules:
+      $ref: https://w3id.org/iqb/spec/item-matrix-rules/0.1
+      description: 'Unverändertes externes Format Item Matrix Rules 0.1. Laufzeitprofil der API: fehlende Felder
+        werden gemäß Default der WorkspaceConfiguration ergänzt. PUT ersetzt statt zu mergen. missingsMap gilt
+        nur für Status ungleich CODING_COMPLETE: genau einen passenden Eintrag verwenden, sonst missingElse.
+        code und score kommen beide aus itemValue bzw. missingElse; fehlende Unterfelder erhalten code=0 und
+        score=-99. Vorhandene Antwortcodes werden dabei nicht beibehalten. CODING_COMPLETE übernimmt ganzzahligen
+        code und score unverändert; bei fehlenden/ungültigen Werten kein Ersatz durch missingElse oder Rohantwortwerte,
+        sondern Kodierfehler. Status darf über alle Regeln hinweg nur einmal vorkommen, auch nicht doppelt
+        in einer Regel; sonst INVALID_PARAMETER. Nur die fünf Statusnamen des externen Schemas sind konfigurierbar,
+        andere Nicht-CODING_COMPLETE-Status benutzen missingElse. Für mean-v1 werden ausschließlich die in
+        WorkspaceConfiguration.missingScores reservierten Item-Scores ausgeschlossen (Default [-99]). Andere
+        negative Scores sowie 0 sind verwendbar, sofern sie nicht ausdrücklich reserviert wurden. Die Regel
+        gilt für Zusatzitems und vollständig kodierte Antworten gleichermaßen; Skalenwerte sind davon nicht
+        betroffen. Ein Mapping auf score=0 kann somit regulär als No-Credit-Wert mitzählen. Ein weiterer Missing-Score
+        wie -98 muss explizit in missingScores aufgenommen werden.
+
+        Automatische Itembenennung nur bei fehlender/leerer expliziter Itemliste: die feste Variablenmenge
+        stammt aus variableCodings der gespeicherten Unit-Kodierdefinition, unabhängig von den übergebenen
+        oder zurückgegebenen Antworten und deren Status. Jeder dort definierte Eintrag zählt, einschließlich
+        abgeleiteter und manueller Variablen. Doppelte variableCodings.id werden beim Unit-Upload als INVALID_PARAMETER
+        abgewiesen. Zuerst useUnitAliasIfSingleVariable: bei genau einem definierten Eintrag erhält nur dessen
+        zugeordnete Antwort den unitAlias als Item-ID (Zuordnung über dessen alias, falls nicht leer, sonst
+        id); sonst bei positiver Schwelle und strikt längerer Variablen-ID nur variableId; sonst unitAlias
+        + separator + variableId. Länge in Unicode-Codepunkten. Schwelle 0 deaktiviert nur die Längenregel,
+        nicht die Einzelvariablenregel. Negative Schwellen sind semantisch INVALID_PARAMETER. Alle Variablen
+        bleiben Itemkandidaten. Namenskollisionen sind INVALID_PARAMETER. Explizite Items verwenden weiterhin
+        useUnitAliasAsPrefix mit Default true und ohne automatischen separator. Die Laufzeitpräzisierungen
+        ergänzen das externe Schema, ohne es zu erweitern.'
   responses:
     BadRequest:
       description: Ungültige Anfrageparameter
@@ -801,14 +910,72 @@ components:
           example:
             code: INTERNAL_ERROR
             message: Ein unerwarteter Fehler ist aufgetreten
-x-source-api-commit: f3bb2a83fecfab60eef2dd5f07617d6c9fac1d68
+x-source-api-commit: 3d005217b47eecdfdc0064b5a38de9e1b33ccbaf
 x-calculation-profile: mean-v1
 x-publication-status: draft
 x-open-design-points:
-- Vorschlagscharakter der itemNaming-Feldnamen und Laufzeitdefaults bestätigen.
-- codingParameters-Quellstruktur umfasst nur fünf konfigurierbare Response-Status; weitere Status bleiben beim vorgeschlagenen
-  Default MISSING. Eine Erweiterung bedarf separater Abstimmung.
-- Ersatz-code bei fehlender Kodierung und Abgrenzung von CODING_ERROR gemäß vorgeschlagenem Laufzeitprofil fachlich
-  bestätigen.
-- subform-Auflösung bei mehrdeutigen Variablenreferenzen benötigt eine gesonderte fachliche Regel; keine stille
-  Auswahl.
+- Fachliche Bestätigung der Ablösung von codingParameters und separatem itemNaming durch Item Matrix Rules
+  0.1 einschließlich geänderter Einzelvariablenregel und Ersatzcodes.
+- Fachliche Bestätigung der API-Ergänzung missingScores (Default [-99]) und der stabilen Einzelvariablenzählung
+  aus variableCodings. Regeln liefern vollständige Code/Score-Paare; negative Namensschwellen und mehrfache
+  Statuszuordnungen werden abgewiesen.
+- Abgrenzung von CODING_ERROR und Fehlerpriorität sowie subform-Auflösung bei mehrdeutigen Variablenreferenzen
+  fachlich bestätigen.
+- Betriebliche Grenze für die Request-Größe des synchronen Bulk-Uploads festlegen und dokumentieren.
+x-item-matrix-rules-source:
+  url: https://w3id.org/iqb/spec/item-matrix-rules/0.1
+  commit: 0c2791f1b8edce5876ae3fa6b3cb8cdd4a2c5a85
+x-reference-cases:
+- case: Gültiger negativer Score
+  missingScores:
+  - -99
+  itemScores:
+  - -1
+  - 3
+  minItemNumber: 2
+  expected:
+    status: VALID
+    value: 1
+- case: Mehrere reservierte Missing-Scores
+  missingScores:
+  - -99
+  - -98
+  itemScores:
+  - -98
+  - 2
+  minItemNumber: 1
+  expected:
+    status: VALID
+    value: 2
+- case: Nicht reservierter negativer Score
+  missingScores:
+  - -99
+  itemScores:
+  - -98
+  - 2
+  minItemNumber: 2
+  expected:
+    status: VALID
+    value: -48
+- case: Teilantwort ändert Item-ID nicht
+  unitAlias: U1
+  definedVariableIds:
+  - v1
+  - v2
+  useUnitAliasIfSingleVariable: true
+  responseVariableIds:
+  - v1
+  expectedItemIds:
+  - U1v1
+- case: Vollständige Antwort derselben Unit
+  unitAlias: U1
+  definedVariableIds:
+  - v1
+  - v2
+  useUnitAliasIfSingleVariable: true
+  responseVariableIds:
+  - v1
+  - v2
+  expectedItemIds:
+  - U1v1
+  - U1v2
