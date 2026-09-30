@@ -1,46 +1,45 @@
 openapi: 3.1.0
 info:
   title: API für IQB-ResponseAnalyser
-  version: '0.3.0'
-  description: |
-    Der ResponseAnalyser ist ein Teil der [TBA-Architektur](https://iqb-berlin.github.io/tba-info) 
-    für die Kodierung und die Datenanalyse von Lernstandserhebungen. Es werden Konfigurationsdaten 
-    hochgeladen und dann pro Request die Kodierung und Analyse EINER Testperson geliefert.
+  version: 0.4.0-draft.1
+  description: 'Entwurf auf Basis der veröffentlichten API 0.3.0. Interner ResponseAnalyser ohne Frontend,
+    Authentifizierung oder Rollenmodell. Erste Ausbaustufe: eine Dienstinstanz, persistente Workspace-Definitionen,
+    keine dauerhafte Speicherung von Personenantworten oder Ergebnissen. Spätere Skalierung wird durch getrennte
+    Verarbeitung und Speicherung vorbereitet, ist kein Abnahmekriterium dieser Stufe. Der Aufrufer verantwortet
+    Personenbezug und Ergebnisspeicherung. Der Dienst besitzt kein Messzeitpunktmodell; fachlich verschiedene Skalen
+    werden durch unterschiedliche scaleId unterschieden.
+
+    Rechenprofil mean-v1: Alle Basismethoden einschließlich WLE und CODE_COUNT bilden vorläufig den ungewichteten
+    arithmetischen Mittelwert verwendbarer Item-Scores. Alle Derived-Methoden bilden den Mittelwert verwendbarer
+    Quellskalenwerte; MAP benutzt ausschließlich sources[0]. Methodenparameter, Itemgewichte und Mappingtabellen
+    beeinflussen in dieser Stufe die Berechnung nicht. Es findet noch keine WLE-Schätzung, Codezählung, Summen-
+    oder Tabellenabbildung statt. Die definierte Methode bleibt für spätere Ausbaustufen erhalten. Jedes Ergebnis
+    nennt das Rechenprofil ausdrücklich.'
   contact:
     name: Tech Support
     email: iqb-tbadev-support@hu-berlin.de
   license:
     name: CC0
     url: https://creativecommons.org/publicdomain/zero/1.0/deed.en
-
 servers:
-  - url: https://www.iqb-responseanalyser.de/
-    description: Beispiel
-
+- url: https://www.iqb-responseanalyser.de/
+  description: Beispiel
 tags:
-  - name: admin
-    description: Verwaltung von Arbeitsbereichen
-  - name: manage-content
-    description: Hochladen/Löschen von Assessment Content
-  - name: evaluate
-    description: Testergebnisse kodieren und analysieren
-
+- name: admin
+  description: Verwaltung von Arbeitsbereichen
+- name: manage-content
+  description: Hochladen/Löschen von Assessment Content
+- name: evaluate
+  description: Testergebnisse kodieren und analysieren
 paths:
-  /ws-admin:
+  /:
     put:
       tags:
-        - admin
+      - admin
       summary: Anlegen Arbeitsbereich
-      description: Ein neuer Arbeitsbereich wird angelegt
+      description: Legt ohne Request-Body einen namenlosen Workspace mit effektiver Defaultkonfiguration an und
+        liefert dessen ID zurück. Es gibt keinen Workspace-State und keine Freigabeoperation.
       operationId: putWorkspace
-      requestBody:
-        description: Name des neuen Arbeitsbereiches
-        required: true
-        content:
-          text/plain:
-            schema:
-              type: string
-            example: "VERA2027-Pilotierung"
       responses:
         '200':
           description: Arbeitsbereich angelegt
@@ -55,42 +54,16 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
-  /ws-admin/{workspaceId}:
-    patch:
-      tags:
-        - admin
-      summary: Umbenennen Arbeitsbereich
-      description: Ein Arbeitsbereich wird umbenannt
-      operationId: patchWorkspace
-      parameters:
-         - $ref: '#/components/parameters/WorkspaceId'
-      requestBody:
-        description: Neuer Name des Arbeitsbereiches
-        required: true
-        content:
-          text/plain:
-            schema:
-              type: string
-            example: "VERA2027-Haupterhebung"
-
-      responses:
-        '200':
-          description: Arbeitsbereich angelegt
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
+  /{workspaceId}:
     get:
       tags:
-        - admin
+      - admin
       summary: Allgemeine Daten des Arbeitsbereiches werden abgefragt.
-      description: Abruf von Name, Unitliste und Skalenliste
+      description: Abruf von Unitliste und Skalenliste. Workspaces besitzen weder Namen noch Lifecycle-State und
+        werden ausschließlich über workspaceId adressiert.
       operationId: getWorkspaceInfo
       parameters:
-        - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/WorkspaceId'
       responses:
         '200':
           description: Workspace-Info erfolgreich abgerufen
@@ -102,15 +75,33 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
-
-  /ws-admin/{workspaceId}/upload-unit:
+    delete:
+      tags:
+      - admin
+      summary: Workspace löschen
+      operationId: deleteWorkspace
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      description: 'Löscht Workspace samt Definitionen, Aliaszuordnungen und Konfiguration atomar. Der Aufrufer
+        schließt zuvor alte Aufträge einschließlich Ergebnisspeicherung ab oder verwirft sie verbindlich. Unbekannte
+        ID: 404.'
+      responses:
+        '200':
+          description: Operation erfolgreich
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /{workspaceId}/upload-unit:
     post:
       tags:
-        - manage-content
+      - manage-content
       summary: Hochladen des Kodierschemas und der Itemliste einer Unit
       operationId: uploadUnitData
       parameters:
-        - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
         required: true
         content:
@@ -124,11 +115,19 @@ paths:
                   type: array
                   items:
                     type: string
+                  uniqueItems: true
+                  description: Bei fehlender oder leerer Liste wird id als einziger Alias verwendet. Aliase müssen
+                    innerhalb des Workspace eindeutig sein.
                 codingScheme:
-                  $ref: 'https://w3id.org/iqb/spec/coding-scheme/3.4'
+                  $ref: https://w3id.org/iqb/spec/coding-scheme/3.4
                 items:
                   $ref: '#/components/schemas/Items'
-
+                  description: Bei fehlender oder leerer Itemliste automatische Erzeugung nach itemNaming; sonst
+                    explizites Mapping. Explizite Präfixbildung bleibt unitAlias + item.id ohne automatischen separator.
+              required:
+              - id
+              - codingScheme
+              additionalProperties: false
       responses:
         '200':
           description: Daten hochgeladen
@@ -138,22 +137,23 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
-  /ws-admin/{workspaceId}/upload-scale-base:
+      description: Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
+        Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
+        Abhängigkeiten werden bei der Auswertung geprüft.
+  /{workspaceId}/upload-scale-base:
     post:
       tags:
-        - manage-content
+      - manage-content
       summary: Hochladen einer Skalendefinition - Basis-Skala
       operationId: uploadScaleBase
       parameters:
-        - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: 'https://w3id.org/iqb/spec/acp-scale-base/0.4'
-
+              $ref: https://w3id.org/iqb/spec/acp-scale-base/0.4
       responses:
         '200':
           description: Daten hochgeladen
@@ -163,22 +163,23 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
-  /ws-admin/{workspaceId}/upload-scale-derived:
+      description: Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
+        Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
+        Abhängigkeiten werden bei der Auswertung geprüft.
+  /{workspaceId}/upload-scale-derived:
     post:
       tags:
-        - manage-content
+      - manage-content
       summary: Hochladen einer Skalendefinition - Abgeleitete Skala
       operationId: uploadScaleDerived
       parameters:
-        - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: 'https://w3id.org/iqb/spec/acp-scale-derived/0.4'
-
+              $ref: https://w3id.org/iqb/spec/acp-scale-derived/0.4
       responses:
         '200':
           description: Daten hochgeladen
@@ -188,23 +189,18 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
-  /ws-admin/{workspaceId}/delete-unit/{unitId}:
+      description: Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
+        Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
+        Abhängigkeiten werden bei der Auswertung geprüft.
+  /{workspaceId}/delete-unit/{unitId}:
     delete:
       tags:
-        - manage-content
+      - manage-content
       summary: Löschen von Unit-Daten
       operationId: deleteUnitData
       parameters:
-        - $ref: '#/components/parameters/WorkspaceId'
-        - $ref: '#/components/parameters/UnitId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/UnitId'
       responses:
         '200':
           description: Daten löschen
@@ -214,23 +210,17 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
-  /ws-admin/{workspaceId}/delete-scale/{scaleId}:
+      description: Löscht die bezeichnete Definition atomar. Der Aufrufer koordiniert Inhaltsänderungen und laufende
+        Auswertungen.
+  /{workspaceId}/delete-scale/{scaleId}:
     delete:
       tags:
-        - manage-content
+      - manage-content
       summary: Löschen von Skalendaten
       operationId: deleteScale
       parameters:
-        - $ref: '#/components/parameters/WorkspaceId'
-        - $ref: '#/components/parameters/ScaleId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/ScaleId'
       responses:
         '200':
           description: Daten löschen
@@ -240,19 +230,49 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-
-  /evaluate/{workspaceId}:
+      description: Löscht die bezeichnete Definition atomar. Der Aufrufer koordiniert Inhaltsänderungen und laufende
+        Auswertungen.
+  /{workspaceId}/evaluate:
     post:
       tags:
-        - evaluate
+      - evaluate
       summary: Kodieren und analysieren der Daten einer Testperson
-      description: |
-        Die Definitionen, die in einem Arbeitsbereich hinterlegt sind, werden auf die Antworten der Testperson 
-        angewendet. Es werden Antworten kodiert und anschließend Fähigkeitswerte ermittelt. Die Daten der Person
-        werden nicht gespeichert, d. h. bei einem späteren Aufruf müssen wieder alle Antworten übermittelt werden.
+      description: 'Verarbeitet eine Person ohne dauerhafte Speicherung. Der Request verwendet einen konsistenten
+        Workspace-Inhalt.
+
+        1. Antworten pro unitAlias kodieren. Coding Scheme wird unverändert an den Autocoder weitergegeben.
+
+        2. Explizite oder automatische Itemzuordnung anwenden; codingParameters in Code/Score-Werte überführen.
+        Ein Rohantwortwert wird nie ersatzweise als Score verwendet.
+
+        3. Zusatzitems mit berechneten Items zusammenführen: berechneter Eintrag gewinnt vollständig.
+
+        4. Relevante Skalen bestimmen. Keine zugeordneten Itemeinträge: Basisskala weglassen. Relevante Skalen mit
+        ausschließlich Missing-Items bleiben relevant und werden mit Fehlerstatus berichtet.
+
+        5. mean-v1 berechnen: jede Basismethode = ungewichteter Mittelwert verwendbarer Scores; konfigurierte MISSING-Scores
+        nicht mitzählen. minItemNumber zählt verwendbare Scores, einschließlich gültiger 0. Unterhalb der Mindestanzahl
+        oder ohne einen verwendbaren Score: INSUFFICIENT_SOURCE. Der Mindestwert 0 hebt nur die Anzahlbeschränkung
+        auf, erlaubt keine Mittelwertbildung über eine leere Liste.
+
+        6. Derived: zuerst berechnete Quellresultate verwenden, sonst Zusatzskalenwerte. MAP verwendet nur die erste
+        Quelle; deren Mittelwert ist ihr Wert selbst. SUM und MEAN verwenden vorläufig beide den ungewichteten Mittelwert
+        aller erforderlichen Quellen. Zu wenige gültige Quellwerte: INSUFFICIENT_SOURCE. Ein berechnetes Fehlerresultat
+        wird nie durch einen kollidierenden Zusatzwert ersetzt.
+
+        7. Alle relevanten Skalen berichten. Vorschlag für Fehlerabgrenzung: fehlerhafte Definition oder effektiver
+        Zyklus = SCALE_DEF_ERROR; bei korrekter Definition zu wenige verwendbare Items/Quellen = INSUFFICIENT_SOURCE;
+        sonst ein nicht durch codingParameters behandelbarer Kodierfehler = CODING_ERROR. VALID enthält value; Fehler
+        enthalten kein value. Ein Nicht-Erfolgsstatus gilt niemals als numerischer Quellwert.
+
+        Die extern referenzierten Skalenformate bleiben erhalten, ihre spätere methodenspezifische Auswertung wird
+        durch das ausdrücklich ausgewiesene Profil mean-v1 vorläufig ersetzt. Methodenparameter und Gewichte werden
+        gespeichert, aber nicht für die Mittelwertbildung verwendet. Keine WLE-Parameterpflicht oder Ratio-Nennerprüfung
+        in dieser Stufe; Struktur und effektive Abhängigkeiten werden weiterhin geprüft. Der Aufrufer verhindert
+        Überschneidungen zwischen mehrteiligen Imports und Auswertungen; der Dienst erzwingt hierfür keinen Workspace-State.'
       operationId: evaluateResponses
       parameters:
-        - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
         required: true
         content:
@@ -261,12 +281,82 @@ paths:
               $ref: '#/components/schemas/EvaluationInput'
       responses:
         '200':
-          description: Workspace-Info erfolgreich abgerufen
+          description: Kodierte Antworten, zusammengeführte Itemwerte und relevante Skalenresultate im Rechenprofil
+            mean-v1.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/EvaluationOutput'
-
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /{workspaceId}/configuration:
+    get:
+      tags:
+      - admin
+      summary: Effektive Konfiguration lesen
+      operationId: getWorkspaceConfiguration
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      description: Liefert codingParameters und Itembenennungsregeln einschließlich Defaults.
+      responses:
+        '200':
+          description: Operation erfolgreich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceConfiguration'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags:
+      - admin
+      summary: Konfiguration ersetzen
+      operationId: putWorkspaceConfiguration
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      description: Ersetzt die Konfiguration atomar; nicht angegebene Werte werden auf Defaults zurückgesetzt. Kein
+        Merge mit der früheren Konfiguration. Der Aufrufer koordiniert die Änderung mit laufenden Auswertungen.
+      responses:
+        '200':
+          description: Operation erfolgreich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceConfiguration'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceConfiguration'
+  /{workspaceId}/reset:
+    post:
+      tags:
+      - admin
+      summary: Workspace-Inhalt vollständig leeren
+      operationId: resetWorkspace
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      description: Löscht Units, Aliase und Skalen atomar und setzt die Konfiguration auf Defaults zurück. Die Workspace-ID
+        bleibt erhalten. Wiederholbar. Der Aufrufer koordiniert alte Ergebnisse und startet bis zum abgeschlossenen
+        Neuimport keine Auswertungen.
+      responses:
+        '200':
+          description: Operation erfolgreich
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -299,17 +389,12 @@ components:
       required: true
       schema:
         type: string
-        example: "iqb.bista-primar-de.2027"
+        example: iqb.bista-primar-de.2027
       description: Eindeutige Kennung für eine Skala
-
   schemas:
-    # Response Wrappers
     WorkspaceInfo:
       type: object
       properties:
-        name:
-          type: string
-          description: Name of workspace
         units:
           type: array
           description: List of units with data in this workspace
@@ -325,7 +410,7 @@ components:
                 type: boolean
                 default: false
             required:
-              - id
+            - id
         Scales:
           type: array
           description: List of scales in this workspace
@@ -339,11 +424,15 @@ components:
               type:
                 type: string
             required:
-              - id
-              - type
-
+            - id
+            - type
+      required:
+      - units
+      - Scales
+      additionalProperties: false
     Items:
-      description: List of items of one unit.
+      description: Explizite Itemzuordnung. useUnitAliasAsPrefix default true. Diese Liste hat Vorrang vor automatischer
+        Itembenennung; deren drei Sonderregeln gelten hier nicht.
       type: array
       items:
         type: object
@@ -351,7 +440,8 @@ components:
           id:
             type: string
           useUnitAliasAsPrefix:
-            description: If true, the unique item identifier will be composed of the unit alias and the item id. If false, the item id has no prefix.
+            description: If true, the unique item identifier will be composed of the unit alias and the item id.
+              If false, the item id has no prefix.
             type: boolean
             default: true
           name:
@@ -361,9 +451,8 @@ components:
             type: string
         additionalProperties: false
         required:
-          - id
-          - sourceVariable
-
+        - id
+        - sourceVariable
     unitResponses:
       type: object
       properties:
@@ -372,22 +461,21 @@ components:
         responses:
           type: array
           items:
-            $ref: 'https://w3id.org/iqb/spec/response/2.0'
+            $ref: https://w3id.org/iqb/spec/response/2.0
           minItems: 1
           example:
-            - id: "M23441_2"
-              status: "INVALID"
-              value: 4
-            - id: "M23441_3"
-              status: "CODING_COMPLETE"
-              value: "wunderbAre Sache!"
-              code: 0
-              score: 0
+          - id: M23441_2
+            status: INVALID
+            value: 4
+          - id: M23441_3
+            status: CODING_COMPLETE
+            value: wunderbAre Sache!
+            code: 0
+            score: 0
       additionalProperties: false
       required:
-        - unitAlias
-        - responses
-
+      - unitAlias
+      - responses
     itemValues:
       type: array
       items:
@@ -400,26 +488,28 @@ components:
           score:
             type: integer
         required:
-          - id
-          - code
-          - score
+        - id
+        - code
+        - score
         additionalProperties: false
       example:
-        - id: "M23441a"
-          code: 1
-          score: -99
-        - id: "M23441b"
-          code: 23
-          score: 0
-        - id: "M23441c"
-          code: 1
-          score: 1
-
+      - id: M23441a
+        code: 1
+        score: -99
+      - id: M23441b
+        code: 23
+        score: 0
+      - id: M23441c
+        code: 1
+        score: 1
     EvaluationInput:
-      description: |
-        Es werden alle Antworten einer Person übergeben. Das Format 
-        entspricht dem IQB-Standard für Antwortdaten des IQB-Testcenters.
-        Außerdem können zusätzliche Itemwerte aus anderen Quellen übergeben werden.
+      description: Alle verfügbaren Antworten und optional zusätzliche Item-/Skalenwerte einer Person. Keine Personen-ID
+        und keine Messzeitpunktinformation. Unterschiedliche fachliche Skalen werden ausschließlich durch unterschiedliche
+        scaleId unterschieden. Berechnete Items haben bei gleicher id vollständig Vorrang vor Zusatzitems. Berechnete
+        Skalenresultate haben bei gleicher scaleId auch im Fehlerfall Vorrang vor Zusatzwerten; es erfolgt kein
+        feldweises Zusammenführen und kein Ersatz eines Fehlers durch den Zusatzwert. Doppelte IDs innerhalb einer
+        Zusatzliste oder doppelte automatische Item-IDs werden abgewiesen. Ohne responses sind Anfragen nur mit
+        Zusatzwerten möglich. Eine leere Eingabe liefert leere Ergebnislisten.
       type: object
       properties:
         responses:
@@ -430,7 +520,9 @@ components:
         addOnItems:
           $ref: '#/components/schemas/itemValues'
         addOnScaleValues:
-          description: Für alle Skalen, für die zu einem anderen Zeitpunkt für die Person Werte ermittelt wurden, können hier Skalenwerte geliefert werden.
+          description: Zusätzliche numerische Quellskalenwerte; keine Messzeitpunkt-Metadaten. Bei Namenskonflikt
+            hat ein ermitteltes Skalenresultat Vorrang, auch mit Fehlerstatus. Diese Werte dienen als Quellen und
+            werden nicht allein deshalb als eigene berechnete Ergebnisse ausgegeben.
           type: array
           items:
             type: object
@@ -440,40 +532,39 @@ components:
               value:
                 type: number
             required:
-              - scaleId
-              - value
+            - scaleId
+            - value
             additionalProperties: false
       additionalProperties: false
       example:
         responses:
-          - unitId: "M28347"
-            responses:
-            - id: "2"
-              status: "VALUE_CHANGED"
-              value: 4
-            - id: "3"
-              status: "VALUE_CHANGED"
-              value: "wunderbAre Sache!"
-            - id: "aac"
-              status: "CODING_COMPLETE"
-              value:
-                - 4
-                - 5
-                - 7
-                - 1
-              code: 3
-              score: 1
-        addOnItems:
-          - id: "K3445"
-            code: 2
+        - responses:
+          - id: '2'
+            status: VALUE_CHANGED
+            value: 4
+          - id: '3'
+            status: VALUE_CHANGED
+            value: wunderbAre Sache!
+          - id: aac
+            status: CODING_COMPLETE
+            value:
+            - 4
+            - 5
+            - 7
+            - 1
+            code: 3
             score: 1
-          - id: "K3335"
-            code: 5
-            score: -99
-          - id: "K0445"
-            code: 0
-            score: 0
-
+          unitAlias: M28347
+        addOnItems:
+        - id: K3445
+          code: 2
+          score: 1
+        - id: K3335
+          code: 5
+          score: -99
+        - id: K0445
+          code: 0
+          score: 0
     EvaluationOutput:
       type: object
       properties:
@@ -482,53 +573,49 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/unitResponses'
-          minItems: 1
           example:
-            - unitId: "M28347"
-              responses:
-              - id: "2"
-                status: "INVALID"
-                value: 4
-              - id: "3"
-                status: "CODING_COMPLETE"
-                value: "wunderbAre Sache!"
-                code: 0
-                score: 0
+          - responses:
+            - id: '2'
+              status: INVALID
+              value: 4
+            - id: '3'
+              status: CODING_COMPLETE
+              value: wunderbAre Sache!
+              code: 0
+              score: 0
+            unitAlias: M28347
         itemValues:
           $ref: '#/components/schemas/itemValues'
-
         scaleValues:
-          description: Für alle Skalen, zu denen Antworten oder zusätzliche Itemwerte vorlagen, werden Werte geliefert.
           type: array
           items:
-            type: object
-            properties:
-              scaleId:
-                type: string
-              status:
-                type: string
-                enum:
-                  - VALID
-                  - SCALE_DEF_ERROR
-                  - CODING_ERROR
-                  - INSUFFICIENT_SOURCE
-                default: INSUFFICIENT_SOURCE
-              value:
-                type: number
-                default: 0
-            required:
-              - scaleId
-            additionalProperties: false
+            $ref: '#/components/schemas/ScaleResult'
+          description: Relevanz und Berechenbarkeit sind getrennt. Eine Basisskala ohne irgendeinen zugeordneten
+            Itemeintrag in der zusammengeführten Itemliste wird nicht berichtet. Auch ein Itemeintrag mit MISSING
+            begründet Relevanz; er liefert jedoch keinen verwendbaren Score. Alle relevanten Skalen werden mit VALID
+            und value oder einem Fehlerstatus ohne value berichtet. Derived-Relevanz entsteht durch mindestens eine
+            relevante effektive Quellskala oder einen zusätzlich gelieferten effektiven Quellwert; ohne jede solche
+            Quelle entfällt die Skala. Für MAP ist ausschließlich sources[0] effektiv, weitere Quellen werden nicht
+            ausgewertet, begründen keine Relevanz und keine Mindestanforderung. Für andere Derived-Methoden sind
+            alle aufgeführten Quellen erforderlich. Relevanz wird entlang der effektiven Abhängigkeiten fortgepflanzt.
+            Reine Zusatzskalen werden nicht als berechnete Resultate durchgereicht.
           example:
-            - scaleId: "IQB.FCSum"
-              value: 1
-            - scaleId: "IQB.FCRatio"
-              value: 3
-            - scaleId: "IQB.Komp.GER"
-              value: 34
+          - scaleId: base.example
+            status: VALID
+            value: 3
+          - scaleId: derived.example
+            status: INSUFFICIENT_SOURCE
+        calculationProfile:
+          type: string
+          const: mean-v1
+          description: Explizites vorläufiges Rechenprofil. Insbesondere keine fachlich differenzierte WLE-, SUM-,
+            CODE_COUNT- oder MAP-Berechnung.
       additionalProperties: false
-
-    # Error Models
+      required:
+      - calculationProfile
+      - codedResponses
+      - itemValues
+      - scaleValues
     Error:
       type: object
       properties:
@@ -541,8 +628,151 @@ components:
         details:
           type: object
           description: Zusätzliche Fehlerdetails
-      required: [code, message]
-
+      required:
+      - code
+      - message
+    CodingParameters:
+      description: 'Some parameters for coding and analysis in general Unveränderte Quellstruktur mit lokal aufgelöster
+        itemValueType-Referenz. Kein separates missingMap-Feld. Vorschlag für Laufzeitdefaults: FULL_CREDIT=1, NO_CREDIT=0,
+        MISSING=-99; fehlende Overrides behalten diese Defaults. statusMapping default []; nicht zugeordnete Status
+        außer CODING_COMPLETE werden als MISSING behandelt. Doppelte Typdefinitionen und mehrfach zugeordnete Status
+        werden semantisch abgewiesen. Für nicht CODING_COMPLETE wird score aus dem Statusmapping bestimmt; ein vorhandener
+        ganzzahliger code bleibt erhalten, sonst wird der konfigurierte MISSING-Wert als code verwendet. CODING_COMPLETE
+        ohne ganzzahligen code oder score ist ein Kodierfehler. Die Quellstruktur erlaubt nur ihre fünf Statusnamen;
+        sie wird hier nicht stillschweigend erweitert.'
+      type: object
+      properties:
+        itemValues:
+          description: Mapping logical item values to numeric values. Standards are 1-FULL_CREDIT, 0-NO_CREDIT,
+            -99-MISSING.
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                $ref: '#/components/schemas/CodingParameters/$defs/itemValueType'
+              value:
+                type: integer
+        statusMapping:
+          description: Rules how to translate response status into item value
+          type: array
+          items:
+            type: object
+            properties:
+              itemValueType:
+                $ref: '#/components/schemas/CodingParameters/$defs/itemValueType'
+              status:
+                type: array
+                items:
+                  type: string
+                  enum:
+                  - UNSET
+                  - NOT_REACHED
+                  - DISPLAYED
+                  - INVALID
+                  - CODING_ERROR
+                minItems: 1
+            required:
+            - itemValueType
+            - status
+            additionalProperties: false
+      additionalProperties: false
+      $defs:
+        itemValueType:
+          type: string
+          enum:
+          - FULL_CREDIT
+          - NO_CREDIT
+          - MISSING
+      x-source: https://github.com/iqb-specifications/acp-index/blob/4342b0dcfb2840eab51d3b54165877a64a874909/acp-index.schema.json#L303
+    ItemNaming:
+      type: object
+      additionalProperties: false
+      default: &id001
+        separator: ''
+        omitPrefixIfVariableIdLongerThan: null
+        useUnitAliasIfSingleCodingCompleteVariable: false
+      description: 'Konfigurationsvorschlag für automatisch erzeugte Items, wenn items fehlt oder leer ist. Default:
+        unitAlias + variableId. Die ID der kodierten Antwort ist variableId. Regelreihenfolge: (1) Bei aktivierter
+        Einzelvariablenregel und genau einer Antwort mit CODING_COMPLETE erhält nur deren Item den Unit-Alias. (2)
+        Sonst entfällt das Präfix, wenn die variableId länger als die konfigurierte Schwelle ist. (3) Sonst unitAlias
+        + separator + variableId. Länge wird in Unicode-Codepunkten gemessen. Alle Antwortvariablen bleiben Kandidaten;
+        nicht fertig kodierte Antworten unterliegen codingParameters. Explizite nicht leere Itemlisten werden durch
+        diese Regeln nicht verändert. Namenskollisionen werden als INVALID_PARAMETER abgewiesen, nicht still überschrieben.'
+      properties:
+        separator:
+          type: string
+          default: ''
+          description: Trennzeichen zwischen Unit-Alias und Variablen-ID bei automatischer Präfixbildung.
+        omitPrefixIfVariableIdLongerThan:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          default: null
+          description: null deaktiviert die Regel. Bei 4 entfällt das Präfix erst ab 5 Zeichen.
+        useUnitAliasIfSingleCodingCompleteVariable:
+          type: boolean
+          default: false
+          description: Wenn genau eine Antwortvariable CODING_COMPLETE hat, wird deren Item allein mit dem Unit-Alias
+            benannt.
+    WorkspaceConfiguration:
+      type: object
+      additionalProperties: false
+      properties:
+        codingParameters:
+          $ref: '#/components/schemas/CodingParameters'
+        itemNaming:
+          $ref: '#/components/schemas/ItemNaming'
+      default: &id002
+        codingParameters:
+          itemValues:
+          - type: FULL_CREDIT
+            value: 1
+          - type: NO_CREDIT
+            value: 0
+          - type: MISSING
+            value: -99
+          statusMapping: []
+        itemNaming: *id001
+      example: *id002
+      description: Workspace-Konfiguration. PUT ersetzt die gesamte Konfiguration; ausgelassene Felder und Unterfelder
+        erhalten die dokumentierten Laufzeitdefaults. GET liefert die effektive Konfiguration einschließlich Defaults.
+        JSON-Schema-default ist eine Annotation; die Anwendung muss die Defaults selbst anwenden. Negative MISSING-Zahl
+        und eindeutige Zuordnungen werden semantisch geprüft. Die vorgeschlagenen Statusdefaults und Ersatzcodes
+        sind Entwurfsentscheidungen.
+    ScaleResult:
+      type: object
+      additionalProperties: false
+      properties:
+        scaleId:
+          type: string
+        status:
+          type: string
+          enum:
+          - VALID
+          - SCALE_DEF_ERROR
+          - CODING_ERROR
+          - INSUFFICIENT_SOURCE
+        value:
+          type: number
+      required:
+      - scaleId
+      - status
+      allOf:
+      - if:
+          properties:
+            status:
+              const: VALID
+          required:
+          - status
+        then:
+          required:
+          - value
+        else:
+          not:
+            required:
+            - value
   responses:
     BadRequest:
       description: Ungültige Anfrageparameter
@@ -550,33 +780,35 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example: |
-            {
-            "code": "INVALID_PARAMETER",
-            "message": "Der Parameter 'Name des neuen Arbeitsbereiches' ist erforderlich"
-            }
-
+          example:
+            code: INVALID_PARAMETER
+            message: Ein Anfrageparameter ist ungültig.
     NotFound:
       description: Ressource nicht gefunden
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example: |
-            {
-            "code": "RESOURCE_NOT_FOUND",
-            "message": "Unit mit ID 12345 nicht gefunden"
-            }
-
+          example:
+            code: RESOURCE_NOT_FOUND
+            message: Unit mit ID 12345 nicht gefunden
     InternalError:
       description: Interner Serverfehler
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-          example: |
-            {
-            "code": "INTERNAL_ERROR",
-            "message": "Ein unerwarteter Fehler ist aufgetreten"
-            }
-
+          example:
+            code: INTERNAL_ERROR
+            message: Ein unerwarteter Fehler ist aufgetreten
+x-source-api-commit: f3bb2a83fecfab60eef2dd5f07617d6c9fac1d68
+x-calculation-profile: mean-v1
+x-publication-status: draft
+x-open-design-points:
+- Vorschlagscharakter der itemNaming-Feldnamen und Laufzeitdefaults bestätigen.
+- codingParameters-Quellstruktur umfasst nur fünf konfigurierbare Response-Status; weitere Status bleiben beim vorgeschlagenen
+  Default MISSING. Eine Erweiterung bedarf separater Abstimmung.
+- Ersatz-code bei fehlender Kodierung und Abgrenzung von CODING_ERROR gemäß vorgeschlagenem Laufzeitprofil fachlich
+  bestätigen.
+- subform-Auflösung bei mehrdeutigen Variablenreferenzen benötigt eine gesonderte fachliche Regel; keine stille
+  Auswahl.
