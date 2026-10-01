@@ -16,16 +16,9 @@ info:
 servers:
   - url: https://www.iqb-responseanalyser.de/
     description: Beispiel
-tags:
-  - name: admin
-    description: Verwaltung von Arbeitsbereichen und deren Inhalte
-  - name: evaluate
-    description: Testergebnisse kodieren und analysieren
 paths:
   /:
     put:
-      tags:
-        - admin
       summary: Anlegen Arbeitsbereich
       description:
         Legt ohne Request-Body einen namenlosen Workspace mit effektiver Defaultkonfiguration an und
@@ -47,8 +40,6 @@ paths:
           $ref: "#/components/responses/InternalError"
   /{workspaceId}:
     get:
-      tags:
-        - admin
       summary: Allgemeine Daten des Arbeitsbereiches werden abgefragt.
       description:
         Abruf von Unitliste und Skalenliste. Workspaces besitzen weder Namen noch Lifecycle-State und
@@ -68,8 +59,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
     delete:
-      tags:
-        - admin
       summary: Workspace löschen
       operationId: deleteWorkspace
       parameters:
@@ -89,8 +78,6 @@ paths:
           $ref: "#/components/responses/InternalError"
   /{workspaceId}/upload-unit:
     post:
-      tags:
-        - admin
       summary: Hochladen des Kodierschemas und der Itemliste einer Unit
       operationId: uploadUnitData
       parameters:
@@ -138,8 +125,6 @@ paths:
         Abhängigkeiten werden bei der Auswertung geprüft.
   /{workspaceId}/upload-scale-base:
     post:
-      tags:
-        - admin
       summary: Hochladen einer Skalendefinition - Basis-Skala
       operationId: uploadScaleBase
       parameters:
@@ -165,8 +150,6 @@ paths:
         Abhängigkeiten werden bei der Auswertung geprüft.
   /{workspaceId}/upload-scale-derived:
     post:
-      tags:
-        - manage-content
       summary: Hochladen einer Skalendefinition - Abgeleitete Skala
       operationId: uploadScaleDerived
       parameters:
@@ -190,37 +173,8 @@ paths:
         Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
         Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
         Abhängigkeiten werden bei der Auswertung geprüft.
-  /{workspaceId}/evaluate:
-    post:
-      tags:
-        - evaluate
-      summary: Kodieren und analysieren der Daten einer Testperson
-      operationId: evaluateResponses
-      parameters:
-        - $ref: "#/components/parameters/WorkspaceId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/EvaluationInput"
-      responses:
-        "200":
-          description: Kodierte Antworten, zusammengeführte Itemwerte und relevante Skalenresultate.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EvaluationOutput"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalError"
   /{workspaceId}/configuration:
     put:
-      tags:
-        - admin
       summary: Konfiguration ersetzen
       operationId: putWorkspaceConfiguration
       parameters:
@@ -247,27 +201,32 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/WorkspaceConfiguration"
-  /{workspaceId}/reset:
+  /{workspaceId}/evaluate:
     post:
-      tags:
-        - admin
-      summary: Workspace-Inhalt vollständig leeren
-      operationId: resetWorkspace
+      summary: Kodieren und analysieren der Daten einer Testperson
+      operationId: evaluateResponses
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
-      description:
-        Löscht Units, Aliase und Skalen atomar und setzt die Konfiguration auf Defaults zurück. Die Workspace-ID
-        bleibt erhalten. Wiederholbar. Der Aufrufer koordiniert alte Ergebnisse und startet bis zum abgeschlossenen
-        Neuimport keine Auswertungen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvaluationInput"
       responses:
         "200":
-          description: Operation erfolgreich
+          description: Kodierte Antworten, zusammengeführte Itemwerte und relevante Skalenresultate.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluationOutput"
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
+
 components:
   parameters:
     WorkspaceId:
