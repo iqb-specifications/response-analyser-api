@@ -203,8 +203,6 @@ paths:
               $ref: "#/components/schemas/WorkspaceConfiguration"
   /{workspaceId}/reset:
     post:
-      tags:
-      - admin
       summary: Workspace-Inhalt vollständig leeren
       operationId: resetWorkspace
       parameters:
