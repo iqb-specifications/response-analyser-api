@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: API für IQB-ResponseAnalyser
-  version: 0.4.0
+  version: 0.5.0
   description: "Interner ResponseAnalyser ohne Frontend,
     Authentifizierung oder Rollenmodell. Eine Dienstinstanz, persistente Workspace-Definitionen,
     keine dauerhafte Speicherung von Personenantworten oder Ergebnissen. Der Aufrufer verantwortet
@@ -53,7 +53,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/WorkspaceConfiguration"
+                $ref: "#/components/schemas/WorkspaceInfo"
         "400":
           $ref: "#/components/responses/BadRequest"
         "404":
@@ -78,7 +78,7 @@ paths:
           $ref: "#/components/responses/InternalError"
   /{workspaceId}/upload-unit:
     post:
-      summary: Hochladen des Kodierschemas und der Itemliste einer Unit
+      summary: Hochladen jeweils des Kodierschemas und der Itemliste für mehrere Units
       operationId: uploadUnitData
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -87,29 +87,31 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                id:
-                  type: string
-                aliases:
-                  type: array
-                  items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
                     type: string
-                  uniqueItems: true
-                  description:
-                    Bei fehlender oder leerer Liste wird id als einziger Alias verwendet. Aliase müssen
-                    innerhalb des Workspace eindeutig sein.
-                codingScheme:
-                  $ref: https://w3id.org/iqb/spec/coding-scheme/3.4
-                items:
-                  $ref: "#/components/schemas/Items"
-                  description:
-                    Bei fehlender oder leerer Itemliste automatische Erzeugung nach itemNaming; sonst
-                    explizites Mapping. Explizite Präfixbildung bleibt unitAlias + item.id ohne automatischen separator.
-              required:
-                - id
-                - codingScheme
-              additionalProperties: false
+                  aliases:
+                    type: array
+                    items:
+                      type: string
+                    uniqueItems: true
+                    description:
+                      Bei fehlender oder leerer Liste wird id als einziger Alias verwendet. Aliase müssen
+                      innerhalb des Workspace eindeutig sein.
+                  codingScheme:
+                    $ref: https://w3id.org/iqb/spec/coding-scheme/3.4
+                  items:
+                    $ref: "#/components/schemas/Items"
+                    description:
+                      Bei fehlender oder leerer Itemliste automatische Erzeugung nach itemNaming; sonst
+                      explizites Mapping. Explizite Präfixbildung bleibt unitAlias + item.id ohne automatischen separator.
+                required:
+                  - id
+                  - codingScheme
+                additionalProperties: false
       responses:
         "200":
           description: Daten hochgeladen
@@ -121,11 +123,9 @@ paths:
           $ref: "#/components/responses/InternalError"
       description:
         Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
-        Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
-        Abhängigkeiten werden bei der Auswertung geprüft.
   /{workspaceId}/upload-scale-base:
     post:
-      summary: Hochladen einer Skalendefinition - Basis-Skala
+      summary: Hochladen von Basis-Skalendefinitionen
       operationId: uploadScaleBase
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -134,7 +134,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: https://w3id.org/iqb/spec/acp-scale-base/0.4
+              type: array
+              items:
+                $ref: https://w3id.org/iqb/spec/acp-scale-base/0.4
       responses:
         "200":
           description: Daten hochgeladen
@@ -146,11 +148,9 @@ paths:
           $ref: "#/components/responses/InternalError"
       description:
         Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
-        Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
-        Abhängigkeiten werden bei der Auswertung geprüft.
   /{workspaceId}/upload-scale-derived:
     post:
-      summary: Hochladen einer Skalendefinition - Abgeleitete Skala
+      summary: Hochladen von Definitionen für abgeleitete Skalen
       operationId: uploadScaleDerived
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
@@ -159,7 +159,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: https://w3id.org/iqb/spec/acp-scale-derived/0.4
+              type: array
+              items:
+                $ref: https://w3id.org/iqb/spec/acp-scale-derived/0.4
       responses:
         "200":
           description: Daten hochgeladen
@@ -171,8 +173,6 @@ paths:
           $ref: "#/components/responses/InternalError"
       description:
         Definitionen ersetzen vorhandene Daten gleicher ID atomar. Vorwärtsreferenzen sind zulässig.
-        Der Aufrufer koordiniert den vollständigen Import und startet währenddessen keine Auswertungen. Fachliche
-        Abhängigkeiten werden bei der Auswertung geprüft.
   /{workspaceId}/configuration:
     put:
       summary: Konfiguration ersetzen
@@ -181,7 +181,7 @@ paths:
         - $ref: "#/components/parameters/WorkspaceId"
       description:
         Ersetzt die Konfiguration atomar; nicht angegebene Werte werden auf Defaults zurückgesetzt. Kein
-        Merge mit der früheren Konfiguration. Der Aufrufer koordiniert die Änderung mit laufenden Auswertungen.
+        Merge mit der früheren Konfiguration.
       responses:
         "200":
           description: Operation erfolgreich
@@ -201,6 +201,25 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/WorkspaceConfiguration"
+  /{workspaceId}/reset:
+    post:
+      tags:
+      - admin
+      summary: Workspace-Inhalt vollständig leeren
+      operationId: resetWorkspace
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      description: Löscht Units, Aliase und Skalen atomar und setzt die Konfiguration auf Defaults zurück. Die Workspace-ID
+        bleibt erhalten. Wiederholbar.
+      responses:
+        '200':
+          description: Operation erfolgreich
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /{workspaceId}/evaluate:
     post:
       summary: Kodieren und analysieren der Daten einer Testperson
@@ -290,9 +309,11 @@ components:
             required:
               - id
               - type
+        config:
+          $ref: "#/components/schemas/WorkspaceConfiguration"
       required:
         - units
-        - Scales
+        - scales
       additionalProperties: false
     Items:
       description:
@@ -476,7 +497,6 @@ components:
               status: INSUFFICIENT_SOURCE
       additionalProperties: false
       required:
-        - calculationProfile
         - codedResponses
         - itemValues
         - scaleValues
